@@ -5,6 +5,7 @@ import subprocess
 import shlex
 import threading
 import uuid
+import sqlite3
 
 
 # ==================================================
@@ -29,15 +30,30 @@ FRONTEND_DIR = BASE_DIR / "frontend"
 PLAYBOOK_DIR = BASE_DIR / "ansible" / "playbooks"
 INVENTORY_DIR = BASE_DIR / "ansible" / "inventory"
 
+DB_FILE = BASE_DIR / "backend" / "jobs.db"
+
 
 # ==================================================
 # Job storage
 #
 # Temporary in-memory storage.
-# Database will be added later.
+# SQLite database is also used for persistence.
 # ==================================================
 
 jobs = {}
+
+
+# ==================================================
+# Database
+# ==================================================
+
+def get_db_connection():
+
+    connection = sqlite3.connect(DB_FILE)
+
+    connection.row_factory = sqlite3.Row
+
+    return connection
 
 
 # ==================================================
@@ -115,16 +131,45 @@ def get_inventories():
 # Background Ansible Job
 # ==================================================
 
+# ==================================================
+# Background Ansible Job
+# ==================================================
+
 def execute_ansible_job(
     job_id,
     command
 ):
 
     # ------------------------------------------------
-    # Update job status
+    # Update job status in memory
     # ------------------------------------------------
 
     jobs[job_id]["status"] = "RUNNING"
+
+    # ------------------------------------------------
+    # Update job status in SQLite
+    # ------------------------------------------------
+
+    connection = get_db_connection()
+
+    connection.execute(
+        """
+        UPDATE jobs
+        SET status = ?
+        WHERE job_id = ?
+        """,
+        (
+            "RUNNING",
+            job_id
+        )
+    )
+
+    connection.commit()
+    connection.close()
+
+    # ------------------------------------------------
+    # Send RUNNING status to browser
+    # ------------------------------------------------
 
     socketio.emit(
         "job_status",
@@ -134,6 +179,9 @@ def execute_ansible_job(
         }
     )
 
+    # =================================================
+    # Try to execute Ansible
+    # =================================================
 
     try:
 
@@ -142,23 +190,20 @@ def execute_ansible_job(
         # --------------------------------------------
 
         process = subprocess.Popen(
-
             command,
-
             stdout=subprocess.PIPE,
-
             stderr=subprocess.STDOUT,
-
             text=True,
-
             bufsize=1
         )
 
+        # --------------------------------------------
+        # Store process object in memory
+        # --------------------------------------------
 
         jobs[job_id]["process"] = process
 
         output_lines = []
-
 
         # --------------------------------------------
         # Read Ansible output line-by-line
@@ -175,29 +220,23 @@ def execute_ansible_job(
 
             output_lines.append(line)
 
-
             # ----------------------------------------
-            # Store log
+            # Store log in memory
             # ----------------------------------------
 
             jobs[job_id]["logs"].append(line)
-
 
             # ----------------------------------------
             # Send realtime log to browser
             # ----------------------------------------
 
             socketio.emit(
-
                 "ansible_log",
-
                 {
                     "job_id": job_id,
                     "line": line
                 }
-
             )
-
 
         # --------------------------------------------
         # Wait for process to finish
@@ -205,17 +244,13 @@ def execute_ansible_job(
 
         process.wait()
 
-
         # --------------------------------------------
-        # Save final output
+        # Save final output in memory
         # --------------------------------------------
 
-        jobs[job_id]["return_code"] = \
-            process.returncode
+        jobs[job_id]["return_code"] = process.returncode
 
-        jobs[job_id]["output"] = \
-            "\n".join(output_lines)
-
+        jobs[job_id]["output"] = "\n".join(output_lines)
 
         # --------------------------------------------
         # Determine final status
@@ -229,27 +264,49 @@ def execute_ansible_job(
 
             jobs[job_id]["status"] = "FAILED"
 
+        # --------------------------------------------
+        # Update final result in SQLite
+        # --------------------------------------------
+
+        connection = get_db_connection()
+
+        connection.execute(
+            """
+            UPDATE jobs
+            SET
+                status = ?,
+                return_code = ?,
+                output = ?,
+                completed_at = CURRENT_TIMESTAMP
+            WHERE job_id = ?
+            """,
+            (
+                jobs[job_id]["status"],
+                process.returncode,
+                jobs[job_id]["output"],
+                job_id
+            )
+        )
+
+        connection.commit()
+        connection.close()
 
         # --------------------------------------------
-        # Send final status
+        # Send final status to browser
         # --------------------------------------------
 
         socketio.emit(
-
             "job_status",
-
             {
                 "job_id": job_id,
-
-                "status":
-                    jobs[job_id]["status"],
-
-                "return_code":
-                    process.returncode
+                "status": jobs[job_id]["status"],
+                "return_code": process.returncode
             }
-
         )
 
+    # =================================================
+    # Ansible command not found
+    # =================================================
 
     except FileNotFoundError:
 
@@ -260,20 +317,47 @@ def execute_ansible_job(
             "Is Ansible installed?"
         )
 
+        # --------------------------------------------
+        # Save error to SQLite
+        # --------------------------------------------
+
+        connection = get_db_connection()
+
+        connection.execute(
+            """
+            UPDATE jobs
+            SET
+                status = ?,
+                output = ?,
+                completed_at = CURRENT_TIMESTAMP
+            WHERE job_id = ?
+            """,
+            (
+                "ERROR",
+                jobs[job_id]["message"],
+                job_id
+            )
+        )
+
+        connection.commit()
+        connection.close()
+
+        # --------------------------------------------
+        # Send error to browser
+        # --------------------------------------------
 
         socketio.emit(
-
             "job_status",
-
             {
                 "job_id": job_id,
                 "status": "ERROR",
-                "message":
-                    jobs[job_id]["message"]
+                "message": jobs[job_id]["message"]
             }
-
         )
 
+    # =================================================
+    # Other unexpected errors
+    # =================================================
 
     except Exception as error:
 
@@ -281,19 +365,91 @@ def execute_ansible_job(
 
         jobs[job_id]["message"] = str(error)
 
+        # --------------------------------------------
+        # Save error to SQLite
+        # --------------------------------------------
+
+        connection = get_db_connection()
+
+        connection.execute(
+            """
+            UPDATE jobs
+            SET
+                status = ?,
+                output = ?,
+                completed_at = CURRENT_TIMESTAMP
+            WHERE job_id = ?
+            """,
+            (
+                "ERROR",
+                str(error),
+                job_id
+            )
+        )
+
+        connection.commit()
+        connection.close()
+
+        # --------------------------------------------
+        # Send error to browser
+        # --------------------------------------------
 
         socketio.emit(
-
             "job_status",
-
             {
                 "job_id": job_id,
                 "status": "ERROR",
                 "message": str(error)
             }
-
         )
 
+    # =================================================
+    # Other execution errors
+    # =================================================
+
+    except Exception as error:
+
+     jobs[job_id]["status"] = "ERROR"
+ 
+     jobs[job_id]["message"] = str(error)
+
+    # --------------------------------------------
+    # Save error to SQLite
+    # --------------------------------------------
+
+    connection = get_db_connection()
+
+    connection.execute(
+        """
+        UPDATE jobs
+        SET
+            status = ?,
+            output = ?,
+            completed_at = CURRENT_TIMESTAMP
+        WHERE job_id = ?
+        """,
+        (
+            "ERROR",
+            str(error),
+            job_id
+        )
+    )
+
+    connection.commit()
+    connection.close()
+
+    # --------------------------------------------
+    # Send error to browser
+    # --------------------------------------------
+
+    socketio.emit(
+        "job_status",
+        {
+            "job_id": job_id,
+            "status": "ERROR",
+            "message": str(error)
+        }
+    )
 
 # ==================================================
 # Start Ansible Job
@@ -303,7 +459,6 @@ def execute_ansible_job(
 def run_playbook():
 
     data = request.get_json()
-
 
     # ------------------------------------------------
     # Validate request
@@ -320,6 +475,9 @@ def run_playbook():
 
         }), 400
 
+    # ------------------------------------------------
+    # Get input values
+    # ------------------------------------------------
 
     playbook = data.get("playbook")
 
@@ -329,7 +487,6 @@ def run_playbook():
         "extra_vars",
         ""
     )
-
 
     # ------------------------------------------------
     # Validate playbook
@@ -346,7 +503,6 @@ def run_playbook():
 
         }), 400
 
-
     # ------------------------------------------------
     # Validate inventory
     # ------------------------------------------------
@@ -362,20 +518,21 @@ def run_playbook():
 
         }), 400
 
-
     # ------------------------------------------------
-    # Security validation
+    # Build absolute paths
     # ------------------------------------------------
 
     playbook_path = (
         PLAYBOOK_DIR / playbook
     ).resolve()
 
-
     inventory_path = (
         INVENTORY_DIR / inventory
     ).resolve()
 
+    # ------------------------------------------------
+    # Security validation
+    # ------------------------------------------------
 
     if PLAYBOOK_DIR.resolve() \
             not in playbook_path.parents:
@@ -389,7 +546,6 @@ def run_playbook():
 
         }), 400
 
-
     if INVENTORY_DIR.resolve() \
             not in inventory_path.parents:
 
@@ -402,9 +558,8 @@ def run_playbook():
 
         }), 400
 
-
     # ------------------------------------------------
-    # Check files
+    # Check playbook file
     # ------------------------------------------------
 
     if not playbook_path.is_file():
@@ -418,6 +573,9 @@ def run_playbook():
 
         }), 404
 
+    # ------------------------------------------------
+    # Check inventory file
+    # ------------------------------------------------
 
     if not inventory_path.is_file():
 
@@ -429,7 +587,6 @@ def run_playbook():
                 "Inventory not found"
 
         }), 404
-
 
     # ------------------------------------------------
     # Build Ansible command
@@ -447,9 +604,8 @@ def run_playbook():
 
     ]
 
-
     # ------------------------------------------------
-    # Extra variables
+    # Add extra variables
     # ------------------------------------------------
 
     if extra_vars.strip():
@@ -462,19 +618,17 @@ def run_playbook():
 
         ])
 
-
-    # ------------------------------------------------
-    # Create Job ID
-    # ------------------------------------------------
+    # =================================================
+    # Create unique Job ID
+    # =================================================
 
     job_id = str(
         uuid.uuid4()
     )
 
-
-    # ------------------------------------------------
-    # Create job record
-    # ------------------------------------------------
+    # =================================================
+    # Create job record in memory
+    # =================================================
 
     jobs[job_id] = {
 
@@ -513,10 +667,57 @@ def run_playbook():
 
     }
 
+    # =================================================
+    # Save job to SQLite database
+    # =================================================
 
-    # ------------------------------------------------
+    connection = get_db_connection()
+
+    connection.execute(
+
+        """
+        INSERT INTO jobs (
+            job_id,
+            status,
+            playbook,
+            inventory,
+            extra_vars,
+            command,
+            return_code,
+            output
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+
+        (
+
+            job_id,
+
+            "PENDING",
+
+            playbook,
+
+            inventory,
+
+            extra_vars,
+
+            jobs[job_id]["command"],
+
+            None,
+
+            ""
+
+        )
+
+    )
+
+    connection.commit()
+
+    connection.close()
+
+    # =================================================
     # Start background thread
-    # ------------------------------------------------
+    # =================================================
 
     thread = threading.Thread(
 
@@ -533,14 +734,14 @@ def run_playbook():
 
     thread.start()
 
-
-    # ------------------------------------------------
-    # Return immediately
-    # ------------------------------------------------
+    # =================================================
+    # Return immediately to browser
+    # =================================================
 
     return jsonify({
 
-        "success": True,
+        "success":
+            True,
 
         "job_id":
             job_id,
@@ -569,6 +770,9 @@ def get_job(job_id):
 
     job = jobs.get(job_id)
 
+    # ------------------------------------------------
+    # Job not found
+    # ------------------------------------------------
 
     if not job:
 
@@ -581,8 +785,10 @@ def get_job(job_id):
 
         }), 404
 
+    # ------------------------------------------------
+    # Don't send process object to browser
+    # ------------------------------------------------
 
-    # Don't send the process object
     response = {
 
         "job_id":
@@ -610,7 +816,6 @@ def get_job(job_id):
             job["output"]
 
     }
-
 
     return jsonify(response)
 
