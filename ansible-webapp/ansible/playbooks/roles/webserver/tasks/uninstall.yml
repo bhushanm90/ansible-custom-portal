@@ -1,0 +1,16 @@
+---
+- name: Stop nginx
+  ansible.builtin.service:
+    name: "nginx"
+    state: stopped
+
+- name: Remove nginx package
+  ansible.builtin.apt:
+    name: "nginx"
+    state: absent
+
+- name: Remove nginx configuration files
+  ansible.builtin.file: 
+    path: /etc/nginx/conf.d/webserver.conf
+    state: absent
+      

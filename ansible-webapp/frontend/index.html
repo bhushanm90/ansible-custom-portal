@@ -1,23 +1,178 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
+  
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
     <title>Ansible WebApp</title>
+
+    <link rel="stylesheet"
+          href="style.css">
+
 </head>
 
 <body>
 
-    <h1>Ansible WebApp</h1>
+    <div class="container">
 
-    <button onclick="runTest()">Run Test</button>
+        <!-- Header -->
 
-    <p id="result"></p>
+        <header>
 
-    <script>
-        function runTest() {
-            document.getElementById("result").innerText =
-                "Button is working!";
-        }
-    </script>
+            <h1>🚀 Ansible WebApp</h1>
+
+            <p>
+                Run Ansible playbooks from your browser
+            </p>
+
+        </header>
+
+
+        <!-- Configuration -->
+
+        <section class="card">
+
+            <h2>Playbook Configuration</h2>
+
+
+            <!-- Playbook -->
+
+            <div class="form-group">
+
+                <label for="playbook">
+                    Playbook
+                </label>
+
+                <select id="playbook">
+
+                    <option value="">
+                        Loading playbooks...
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- Inventory -->
+
+            <div class="form-group">
+
+                <label for="inventory">
+                    Inventory
+                </label>
+
+                <select id="inventory">
+
+                    <option value="">
+                        Loading inventories...
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- Extra Variables -->
+
+            <div class="form-group">
+
+                <label for="extraVars">
+                    Extra Variables
+                </label>
+
+                <input
+                    type="text"
+                    id="extraVars"
+                    placeholder="example: app_name=myapp environment=dev"
+                >
+
+                <small>
+                    Enter variables in:
+                    key=value key2=value2
+                </small>
+
+            </div>
+
+
+            <!-- Run button -->
+
+            <button
+                id="runButton"
+                onclick="runPlaybook()">
+
+                    ▶ Run Playbook
+
+            </button>
+
+        </section>
+
+
+        <!-- Status -->
+
+        <section class="card">
+
+            <h2>Execution Status</h2>
+
+            <div id="status"
+                 class="status waiting">
+
+                Waiting for execution...
+
+            </div>
+
+        </section>
+
+
+        <!-- Command -->
+
+        <section class="card">
+
+            <h2>Ansible Command</h2>
+
+            <pre id="command">
+No command executed yet.
+            </pre>
+
+        </section>
+
+
+        <!-- Output -->
+
+        <section class="card">
+
+            <div class="output-header">
+
+                <h2>Output / Logs</h2>
+
+                <button
+                    class="clear-button"
+                    onclick="clearOutput()">
+
+                    Clear
+
+                </button>
+
+            </div>
+
+            <pre id="output">
+No output yet.
+            </pre>
+
+        </section>
+
+    </div>
+
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script src="app.js"></script>
+   
 
 </body>
+</body>
+
 </html>

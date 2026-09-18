@@ -1,4 +1,0 @@
----
-- hosts: ansible
-  roles:
-  - role: webserver

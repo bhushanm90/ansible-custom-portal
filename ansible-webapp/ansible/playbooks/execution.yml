@@ -1,0 +1,5 @@
+---
+- hosts: ansible
+  become: true
+  roles:
+  - role: "{{ role_name }}"

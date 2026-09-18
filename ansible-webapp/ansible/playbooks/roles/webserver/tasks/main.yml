@@ -1,0 +1,7 @@
+- name: Load nginx playbook for install
+  ansible.builtin.include_tasks: install.yml
+  when: user_action == "install" and ansible_os_family == "Debian"
+
+- name: Load nginx playbook for uninstall
+  ansible.builtin.include_tasks: uninstall.yml
+  when: user_action == "uninstall" and ansible_os_family == "Debian"

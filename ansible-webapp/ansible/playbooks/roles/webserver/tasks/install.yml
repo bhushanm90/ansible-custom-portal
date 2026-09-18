@@ -1,9 +1,8 @@
 # Ansible Lint
 # Definition: A static analysis tool that scans your Ansible YAML files (playbooks, roles, tasks) without executing them,
 # checking for style violations, deprecated syntax, security risks, and best-practice violations.
-
+---
 - name: Configure nginx on Debian systems
-  when: ansible_os_family == "Debian"
   block:
     - name: Update apt cache
       ansible.builtin.apt:
@@ -12,7 +11,7 @@
 
     - name: Install nginx
       ansible.builtin.apt:
-        name: nginx
+        name: "nginx"
         state: present
 
     - name: Copy config file
@@ -43,6 +42,7 @@
 
     - name: Start nginx
       ansible.builtin.service:
-        name: nginx
+        name: "nginx"
         state: started
         enabled: true
+  when: ansible_os_family == "Debian"

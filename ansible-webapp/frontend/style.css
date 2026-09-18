@@ -1,9 +1,309 @@
-body {
-    font-family: Arial;
-    margin: 40px;
-
+* {
+    box-sizing: border-box;
 }
-button {
-    padding: 10px 20px;
+
+
+body {
+
+    margin: 0;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    background: #f4f6f8;
+
+    color: #222;
+}
+
+
+/* Main container */
+
+.container {
+
+    width: 90%;
+
+    max-width: 1000px;
+
+    margin: 40px auto;
+}
+
+
+/* Header */
+
+header {
+
+    text-align: center;
+
+    margin-bottom: 30px;
+}
+
+
+header h1 {
+
+    margin-bottom: 8px;
+
+    font-size: 32px;
+}
+
+
+header p {
+
+    color: #666;
+
     font-size: 16px;
+}
+
+
+/* Card */
+
+.card {
+
+    background: white;
+
+    padding: 25px;
+
+    margin-bottom: 20px;
+
+    border-radius: 10px;
+
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+
+.card h2 {
+
+    margin-top: 0;
+
+    margin-bottom: 20px;
+
+    font-size: 20px;
+}
+
+
+/* Form */
+
+.form-group {
+
+    margin-bottom: 20px;
+}
+
+
+label {
+
+    display: block;
+
+    font-weight: bold;
+
+    margin-bottom: 8px;
+}
+
+
+select,
+input {
+
+    width: 100%;
+
+    padding: 12px;
+
+    font-size: 15px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 6px;
+
+    background: white;
+}
+
+
+select:focus,
+input:focus {
+
+    outline: none;
+
+    border-color: #555;
+}
+
+
+small {
+
+    display: block;
+
+    margin-top: 6px;
+
+    color: #777;
+}
+
+
+/* Run button */
+
+#runButton {
+
+    width: 100%;
+
+    padding: 14px;
+
+    border: none;
+
+    border-radius: 6px;
+
+    background: #222;
+
+    color: white;
+
+    font-size: 16px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+
+#runButton:hover {
+
+    background: #444;
+}
+
+
+#runButton:disabled {
+
+    background: #999;
+
+    cursor: not-allowed;
+}
+
+
+/* Status */
+
+.status {
+
+    padding: 12px;
+
+    border-radius: 6px;
+
+    font-weight: bold;
+}
+
+
+.status.waiting {
+
+    background: #eee;
+
+    color: #555;
+}
+
+
+.status.running {
+
+    background: #fff3cd;
+
+    color: #856404;
+}
+
+
+.status.success {
+
+    background: #d4edda;
+
+    color: #155724;
+}
+
+
+.status.failed {
+
+    background: #f8d7da;
+
+    color: #721c24;
+}
+
+
+/* Command and output */
+
+pre {
+
+    background: #111;
+
+    color: #eee;
+
+    padding: 20px;
+
+    border-radius: 6px;
+
+    overflow-x: auto;
+
+    min-height: 100px;
+
+    white-space: pre-wrap;
+
+    word-wrap: break-word;
+
+    font-family:
+        "Courier New",
+        monospace;
+
+    font-size: 14px;
+}
+
+
+/* Output header */
+
+.output-header {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+}
+
+
+.output-header h2 {
+
+    margin-bottom: 20px;
+}
+
+
+.clear-button {
+
+    padding: 7px 15px;
+
+    border: 1px solid #ccc;
+
+    background: white;
+
+    border-radius: 5px;
+
+    cursor: pointer;
+}
+
+
+.clear-button:hover {
+
+    background: #eee;
+}
+
+
+/* Mobile */
+
+@media (max-width: 600px) {
+
+    .container {
+
+        width: 95%;
+
+        margin: 20px auto;
+    }
+
+    .card {
+
+        padding: 18px;
+    }
+
+    header h1 {
+
+        font-size: 26px;
+    }
+
 }
